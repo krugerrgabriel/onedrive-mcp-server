@@ -49,6 +49,11 @@ CLIENT_ID = os.environ.get("ONEDRIVE_MCP_CLIENT_ID") or None
 TENANT_ID = os.environ.get("ONEDRIVE_MCP_TENANT_ID") or None
 DOWNLOAD_DIR = Path(os.environ.get("ONEDRIVE_MCP_DOWNLOAD_DIR", ".")).resolve()
 HTTP_PORT = int(os.environ.get("ONEDRIVE_MCP_PORT", "3001"))
+# Public URL behind a reverse proxy (e.g. https://mcp.example.com). Used as the OAuth
+# resource/audience in RFC 9728 metadata. Falls back to http://localhost:PORT for local use.
+PUBLIC_URL = os.environ.get("ONEDRIVE_MCP_PUBLIC_URL") or None
+# Host interface to bind. Default 0.0.0.0 so a reverse proxy can reach it.
+BIND_HOST = os.environ.get("ONEDRIVE_MCP_HOST", "0.0.0.0")
 
 # Transport mode: set by serve() or serve_http()
 _transport_mode: str = "stdio"
@@ -487,12 +492,12 @@ def serve_http(port: int | None = None) -> None:
     # Configure auth for HTTP mode
     mcp.settings.auth = AuthSettings(
         issuer_url=f"https://login.microsoftonline.com/{tenant}/v2.0",
-        resource_server_url=f"http://localhost:{actual_port}",
+        resource_server_url=(PUBLIC_URL or f"http://localhost:{actual_port}"),
         required_scopes=["Files.ReadWrite", "User.Read"],
     )
     mcp._token_verifier = PassthroughTokenVerifier()
     mcp.settings.port = actual_port
-    mcp.settings.host = "127.0.0.1"
+    mcp.settings.host = BIND_HOST
 
     logger.info("OneDrive MCP server starting (HTTP on port %d)", actual_port)
     mcp.run(transport="streamable-http")

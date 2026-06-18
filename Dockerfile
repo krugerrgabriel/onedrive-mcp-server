@@ -1,15 +1,20 @@
 FROM python:3.11-slim
 
-RUN apt-get update && apt-get install -y --no-install-recommends git socat \
+RUN apt-get update && apt-get install -y --no-install-recommends git \
     && rm -rf /var/lib/apt/lists/*
 
-RUN pip install --no-cache-dir \
-    git+https://github.com/MrFixit96/onedrive-mcp-server.git
+WORKDIR /app
+
+# Instala o código DESTE repositório (o fork com o patch), não o original via pip.
+COPY . /app
+RUN pip install --no-cache-dir /app
 
 ENV ONEDRIVE_MCP_PORT=3001 \
+    ONEDRIVE_MCP_HOST=0.0.0.0 \
     ONEDRIVE_MCP_LOG_LEVEL=INFO
 
-EXPOSE 9000
+EXPOSE 3001
 
-# servidor interno em 127.0.0.1:3001, socat publica em 0.0.0.0:9000
-CMD sh -c "onedrive-mcp --http & exec socat TCP-LISTEN:9000,fork,reuseaddr TCP:127.0.0.1:3001"
+# Com ONEDRIVE_MCP_HOST=0.0.0.0 o servidor já escuta em todas as interfaces.
+# socat não é mais necessário.
+CMD ["onedrive-mcp", "--http"]
